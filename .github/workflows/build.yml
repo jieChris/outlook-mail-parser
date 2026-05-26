@@ -27,7 +27,7 @@ jobs:
 
       - name: Build EXE
         run: |
-          pyinstaller --onefile --name "邮箱验证码解析" `
+          pyinstaller --onefile --name "outlook-mail-parser" `
             --add-data "outlook邮箱管理.html;." `
             --console `
             server.py
@@ -36,19 +36,24 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path release | Out-Null
-          Copy-Item "dist/邮箱验证码解析.exe" "release/"
+          Copy-Item "dist/outlook-mail-parser.exe" "release/邮箱验证码解析.exe"
           Copy-Item "README.txt" "release/"
-          Compress-Archive -Path release/* -DestinationPath "邮箱验证码解析-Windows.zip"
+          Compress-Archive -Path release/* -DestinationPath "outlook-mail-parser-Windows.zip"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: 邮箱验证码解析-Windows
-          path: 邮箱验证码解析-Windows.zip
+          name: outlook-mail-parser-Windows
+          path: outlook-mail-parser-Windows.zip
 
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: 邮箱验证码解析-Windows.zip
+          name: 邮箱验证码解析 ${{ github.ref_name }}
+          files: outlook-mail-parser-Windows.zip
           generate_release_notes: true
+          body: |
+            ## 下载
+
+            点击下方 `outlook-mail-parser-Windows.zip` 下载，解压后双击 `邮箱验证码解析.exe` 即可使用，不需要安装 Python。

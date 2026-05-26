@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>邮箱验证码解析</title>
+<title>验证码批量解析</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23667eea'/><stop offset='1' stop-color='%23764ba2'/></linearGradient></defs><rect width='64' height='64' rx='14' fill='url(%23g)'/><path d='M22 28v-5a10 10 0 0 1 20 0v5' stroke='%23fff' stroke-width='4' fill='none' stroke-linecap='round'/><rect x='17' y='28' width='30' height='22' rx='4' fill='%23fff'/><circle cx='32' cy='38' r='3' fill='%23764ba2'/><rect x='31' y='40' width='2' height='6' rx='1' fill='%23764ba2'/></svg>">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -12,6 +13,53 @@
     min-height: 100vh;
     padding: 24px;
     color: #2c3e50;
+  }
+  .promo-bar {
+    max-width: 1200px;
+    margin: 0 auto 14px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 12px;
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #fff;
+    font-size: 13px;
+    flex-wrap: wrap;
+  }
+  .promo-bar .tag {
+    background: rgba(255,255,255,0.22);
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+  .promo-bar .desc { opacity: 0.95; }
+  .promo-bar a {
+    color: #fff;
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(255,255,255,0.6);
+    padding-bottom: 1px;
+    margin-left: auto;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+  }
+  .promo-bar a:hover { opacity: 0.85; }
+  .promo-bar a::after {
+    content: " →";
+    display: inline-block;
+    transition: transform 0.2s;
+  }
+  .promo-bar a:hover::after { transform: translateX(3px); }
+  @media (max-width: 600px) {
+    .promo-bar { font-size: 12px; padding: 9px 14px; }
+    .promo-bar a { margin-left: 0; }
   }
   .container {
     max-width: 1200px;
@@ -411,9 +459,14 @@
 </style>
 </head>
 <body>
+<div class="promo-bar">
+  <span class="tag">推广</span>
+  <span class="desc">低价 PP 接码、Codex、Plus 成品号、各类邮箱</span>
+  <a href="https://pay.ldxp.cn/shop/Q888" target="_blank" rel="noopener">秋的链动小铺</a>
+</div>
 <div class="container">
   <header>
-    <h1>邮箱验证码批量解析</h1>
+    <h1>验证码批量解析</h1>
     <p>粘贴 邮箱----链接 格式，自动提取邮件中的验证码，点击验证码即可复制</p>
   </header>
 

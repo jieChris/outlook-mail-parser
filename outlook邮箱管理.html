@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>邮箱验证码解析</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 24px;
+    color: #2c3e50;
+  }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    overflow: hidden;
+  }
+  header {
+    padding: 24px 32px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+  }
+  header h1 { font-size: 20px; font-weight: 600; }
+  header p { margin-top: 4px; font-size: 12px; opacity: 0.9; }
+
+  .panel { padding: 20px 32px; }
+  .panel + .panel { padding-top: 0; }
+
+  .input-area {
+    width: 100%;
+    min-height: 120px;
+    padding: 12px;
+    border: 2px solid #e1e4e8;
+    border-radius: 10px;
+    font-family: "SF Mono", Consolas, Monaco, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    resize: vertical;
+    transition: border-color 0.2s;
+  }
+  .input-area:focus { outline: none; border-color: #667eea; }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  button {
+    padding: 9px 18px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+  }
+  .btn-primary:hover:not(:disabled) { box-shadow: 0 6px 18px rgba(102,126,234,0.4); }
+  .btn-secondary {
+    background: #f1f3f5;
+    color: #495057;
+  }
+  .btn-secondary:hover:not(:disabled) { background: #e9ecef; }
+
+  .hint { font-size: 12px; color: #6c757d; margin-top: 6px; }
+  .hint code { background: #f1f3f5; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    margin-bottom: 12px;
+  }
+  .toolbar input[type="text"] {
+    flex: 1;
+    min-width: 200px;
+    padding: 7px 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 13px;
+    background: #fff;
+  }
+  .toolbar input[type="text"]:focus { outline: none; border-color: #667eea; }
+  .toolbar select {
+    padding: 7px 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 13px;
+    background: #fff;
+    cursor: pointer;
+  }
+  .toolbar .stats {
+    display: flex;
+    gap: 14px;
+    font-size: 12px;
+    color: #495057;
+    margin-left: auto;
+  }
+  .toolbar .stats b { color: #2c3e50; font-weight: 600; }
+
+  .progress-wrap {
+    height: 4px;
+    background: #e9ecef;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    transition: width 0.2s;
+    width: 0%;
+  }
+
+  .results { display: flex; flex-direction: column; gap: 6px; }
+
+  .row {
+    background: #fff;
+    border: 1px solid #e1e4e8;
+    border-radius: 8px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .row:hover { border-color: #c9d1d9; }
+  .row.success { border-left: 3px solid #28a745; }
+  .row.error { border-left: 3px solid #dc3545; }
+  .row.loading { border-left: 3px solid #ffc107; }
+  .row.empty-codes { border-left: 3px solid #6c757d; }
+  .row.hidden { display: none; }
+
+  .row-head {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1.4fr) 76px 100px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .caret {
+    color: #adb5bd;
+    font-size: 10px;
+    transition: transform 0.2s;
+    width: 14px;
+    text-align: center;
+  }
+  .row.expanded .caret { transform: rotate(90deg); }
+  .email {
+    font-size: 13px;
+    color: #2c3e50;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 2px 6px;
+    margin: -2px -6px;
+    border-radius: 5px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .email:hover { background: #f1f3f5; color: #667eea; }
+  .email.copied { background: #d4edda; color: #155724; }
+  .email::after {
+    content: " 📋";
+    font-size: 10px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .email:hover::after { opacity: 0.6; }
+  .email.copied::after { content: " ✓"; opacity: 1; }
+  .status {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+    text-align: center;
+    justify-self: start;
+  }
+  .status.ok { background: #d4edda; color: #155724; }
+  .status.err { background: #f8d7da; color: #721c24; }
+  .status.pending { background: #fff3cd; color: #856404; }
+  .status.none { background: #e9ecef; color: #495057; }
+
+  .codes-inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    overflow: hidden;
+  }
+  .code-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-family: "SF Mono", Consolas, Monaco, monospace;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.15s, box-shadow 0.15s;
+    border: none;
+    white-space: nowrap;
+  }
+  .code-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(102,126,234,0.4);
+  }
+  .code-chip.copied { background: linear-gradient(135deg, #28a745, #20c997); }
+  .code-chip::after { content: "📋"; font-size: 11px; opacity: 0.85; }
+  .code-chip.copied::after { content: "✓"; opacity: 1; }
+
+  .row-actions {
+    display: flex;
+    gap: 4px;
+  }
+  .icon-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: #6c757d;
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  .icon-btn:hover { background: #f1f3f5; color: #495057; border-color: #dee2e6; }
+
+  .row-detail {
+    display: none;
+    padding: 0 14px 14px 14px;
+    border-top: 1px solid #f1f3f5;
+    margin-top: 4px;
+    padding-top: 12px;
+  }
+  .row.expanded .row-detail { display: block; }
+  .detail-label {
+    font-size: 11px;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+    margin-top: 8px;
+  }
+  .detail-label:first-child { margin-top: 0; }
+  .content {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #495057;
+    line-height: 1.6;
+    max-height: 220px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: "SF Mono", Consolas, Monaco, monospace;
+  }
+  .content.error-content { color: #dc3545; }
+
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: #2c3e50;
+    color: #fff;
+    padding: 11px 22px;
+    border-radius: 8px;
+    font-size: 13px;
+    transition: transform 0.3s;
+    z-index: 1000;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #adb5bd;
+    font-size: 13px;
+  }
+
+  @media (max-width: 768px) {
+    .row-head {
+      grid-template-columns: 20px 1fr auto auto;
+      grid-template-rows: auto auto;
+    }
+    .email { grid-column: 2 / 3; grid-row: 1; }
+    .group-tag { grid-column: 3 / 4; grid-row: 1; }
+    .status { grid-column: 4; grid-row: 1; }
+    .codes-inline { grid-column: 2 / 5; grid-row: 2; }
+    .row-actions { grid-column: 4; grid-row: 1; align-self: end; }
+  }
+
+  .groups-bar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 10px 16px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    margin-bottom: 12px;
+  }
+  .group-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 11px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 500;
+    background: #fff;
+    color: #495057;
+    border: 1px solid #dee2e6;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .group-chip:hover { border-color: #667eea; color: #667eea; }
+  .group-chip.active {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    border-color: transparent;
+  }
+  .group-chip .count {
+    font-size: 11px;
+    opacity: 0.75;
+    background: rgba(255,255,255,0.3);
+    padding: 1px 6px;
+    border-radius: 10px;
+  }
+  .group-chip.active .count { background: rgba(255,255,255,0.25); }
+  .group-chip:not(.active) .count { background: #f1f3f5; color: #6c757d; }
+  .group-chip .x {
+    margin-left: 2px;
+    color: inherit;
+    opacity: 0.5;
+    font-size: 13px;
+    line-height: 1;
+  }
+  .group-chip .x:hover { opacity: 1; }
+  .group-chip-add {
+    border: 1px dashed #adb5bd;
+    color: #6c757d;
+    background: transparent;
+  }
+  .group-chip-add:hover { border-style: solid; color: #667eea; border-color: #667eea; }
+
+  .group-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    background: #eef2ff;
+    color: #4338ca;
+    border: 1px solid #e0e7ff;
+    cursor: pointer;
+    user-select: none;
+  }
+  .group-tag:hover { background: #e0e7ff; }
+  .group-tag.none { background: #f8f9fa; color: #adb5bd; border-color: #e9ecef; }
+
+  .group-popover {
+    position: absolute;
+    background: #fff;
+    border: 1px solid #e1e4e8;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+    padding: 6px;
+    min-width: 160px;
+    max-height: 240px;
+    overflow-y: auto;
+    z-index: 50;
+  }
+  .group-popover .opt {
+    padding: 6px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    color: #495057;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .group-popover .opt:hover { background: #f1f3f5; }
+  .group-popover .opt.selected { background: #eef2ff; color: #4338ca; font-weight: 600; }
+  .group-popover .sep { height: 1px; background: #f1f3f5; margin: 4px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>邮箱验证码批量解析</h1>
+    <p>粘贴 邮箱----链接 格式，自动提取邮件中的验证码，点击验证码即可复制</p>
+  </header>
+
+  <div class="panel">
+    <textarea id="input" class="input-area" placeholder="每行一条，格式：邮箱----链接&#10;例如：&#10;example@mail.com----http://api.example.com/email/latest?api_key=xxx&pt=xxx&email=xxx"></textarea>
+    <div class="hint">支持多行批量解析，分隔符可以是 <code>----</code> 或 <code>,</code> 或制表符。直接请求接口，无代理。</div>
+    <div class="controls">
+      <button class="btn-primary" id="parseBtn">开始解析</button>
+      <button class="btn-secondary" id="clearInputBtn">清空输入</button>
+      <button class="btn-secondary" id="copyAllBtn">复制全部验证码</button>
+      <button class="btn-secondary" id="retryFailedBtn" style="display:none;">重试失败项</button>
+      <span style="font-size:12px;color:#6c757d;margin-left:8px;">添加到分组：</span>
+      <select id="addGroupSelect" style="padding:7px 10px;border:1px solid #dee2e6;border-radius:6px;font-size:13px;background:#fff;cursor:pointer;"></select>
+      <button class="btn-secondary" id="clearAllBtn" style="margin-left:auto;color:#dc3545;">清空所有记录</button>
+    </div>
+  </div>
+
+  <div class="panel" id="resultPanel" style="display:none;">
+    <div class="groups-bar" id="groupsBar"></div>
+    <div class="toolbar">
+      <input type="text" id="searchInput" placeholder="搜索邮箱或验证码...">
+      <select id="filterSelect">
+        <option value="all">全部</option>
+        <option value="success">有验证码</option>
+        <option value="empty">无验证码</option>
+        <option value="error">失败</option>
+        <option value="pending">解析中</option>
+      </select>
+      <button class="btn-secondary" id="expandAllBtn">展开全部</button>
+      <button class="btn-secondary" id="collapseAllBtn">折叠全部</button>
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="results" id="results"></div>
+  </div>
+
+  <div class="panel" id="emptyPanel">
+    <div class="empty">暂无解析结果，粘贴数据后点击「开始解析」</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const CONCURRENCY = 6;
+const STORAGE_KEY = 'mail-parser-records-v1';
+const GROUPS_KEY = 'mail-parser-groups-v1';
+const ACTIVE_GROUP_KEY = 'mail-parser-active-group-v1';
+const GROUP_UNGROUPED = '__ungrouped__';
+const GROUP_ALL = '__all__';
+const STATE = {
+  items: [],
+  groups: [],          // [{ id, name }]
+  activeGroup: GROUP_ALL,
+  addToGroup: GROUP_UNGROUPED,
+};
+
+function genGroupId() {
+  return 'g_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+}
+function loadGroups() {
+  try {
+    const raw = localStorage.getItem(GROUPS_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter(g => g && g.id && g.name) : [];
+  } catch (_) { return []; }
+}
+function saveGroups() {
+  try { localStorage.setItem(GROUPS_KEY, JSON.stringify(STATE.groups)); } catch (_) {}
+}
+function groupName(id) {
+  if (id === GROUP_UNGROUPED || !id) return '未分组';
+  const g = STATE.groups.find(x => x.id === id);
+  return g ? g.name : '未分组';
+}
+function itemsInGroup(gid) {
+  if (gid === GROUP_ALL) return STATE.items;
+  if (gid === GROUP_UNGROUPED) {
+    const valid = new Set(STATE.groups.map(g => g.id));
+    return STATE.items.filter(it => !it.groupId || !valid.has(it.groupId));
+  }
+  return STATE.items.filter(it => it.groupId === gid);
+}
+
+function saveState() {
+  try {
+    const slim = STATE.items.map(it => ({
+      email: it.email,
+      link: it.link,
+      state: it.state === 'pending' ? 'error' : it.state,
+      codes: it.codes || [],
+      content: it.content || '',
+      error: it.state === 'pending' ? '页面关闭中断' : (it.error || null),
+      ts: it.ts || Date.now(),
+      groupId: it.groupId || null
+    }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
+    localStorage.setItem(ACTIVE_GROUP_KEY, STATE.activeGroup || GROUP_ALL);
+  } catch (e) {
+    console.warn('保存失败', e);
+  }
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch (_) { return []; }
+}
+
+function parseInput(text) {
+  return text.split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(Boolean)
+    .map(line => {
+      let parts;
+      if (line.includes('----')) parts = line.split('----');
+      else if (line.includes('\t')) parts = line.split('\t');
+      else if (line.includes(',')) parts = line.split(',');
+      else parts = [line];
+      const email = (parts[0] || '').trim();
+      const link = (parts.slice(1).join('----') || '').trim();
+      return { email, link };
+    })
+    .filter(x => x.email && x.link);
+}
+
+async function fetchContent(url) {
+  const useProxy = location.protocol === 'http:' || location.protocol === 'https:';
+  const target = useProxy ? '/proxy?url=' + encodeURIComponent(url) : url;
+  const r = await fetch(target);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return await r.text();
+}
+
+function extractText(raw) {
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch (_) {}
+  if (parsed) {
+    const candidates = [];
+    const walk = (obj) => {
+      if (!obj) return;
+      if (typeof obj === 'string') { candidates.push(obj); return; }
+      if (Array.isArray(obj)) { obj.forEach(walk); return; }
+      if (typeof obj === 'object') {
+        ['text', 'content', 'body', 'html', 'subject', 'message', 'data', 'result'].forEach(k => {
+          if (obj[k] != null) walk(obj[k]);
+        });
+        Object.values(obj).forEach(v => {
+          if (typeof v === 'string' && v.length > 20) candidates.push(v);
+        });
+      }
+    };
+    walk(parsed);
+    raw = candidates.join('\n\n') || JSON.stringify(parsed, null, 2);
+  }
+  return raw.replace(/<style[\s\S]*?<\/style>/gi, '')
+            .replace(/<script[\s\S]*?<\/script>/gi, '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/[ \t]+/g, ' ')
+            .replace(/\n\s*\n+/g, '\n\n')
+            .trim();
+}
+
+function isPlausibleCode(c) {
+  if (!c) return false;
+  if (!/^[A-Z0-9]{4,8}$/i.test(c)) return false;
+  if (/^(.)\1+$/.test(c)) return false;                 // 0000, 1111
+  if (/^(?:19|20)\d{2}$/.test(c)) return false;          // 年份
+  if ('0123456789'.includes(c) || '9876543210'.includes(c)) return false; // 顺序数列
+  if (/[A-Za-z]/.test(c) && !/\d/.test(c)) return false; // 纯英文单词
+  return true;
+}
+
+function extractCodes(text) {
+  const scored = new Map();
+  const add = (code, n) => {
+    if (!isPlausibleCode(code)) return;
+    scored.set(code, (scored.get(code) || 0) + n);
+  };
+
+  const KW = '(?:验证码|动态码|动态密码|校验码|安全码|确认码|登录码|登入码|登錄碼|短信验证码|verification\\s*code|verify\\s*code|security\\s*code|confirmation\\s*code|access\\s*code|login\\s*code|sign[-\\s]?in\\s*code|auth(?:entication)?\\s*code|one[-\\s]?time\\s*(?:code|password|pin)|otp|passcode|pin\\s*code)';
+  const RE_KW_BEFORE = new RegExp(KW + '[^A-Za-z0-9]{0,30}?([A-Z0-9]{4,8})\\b', 'gi');
+  const RE_KW_AFTER  = new RegExp('\\b([A-Z0-9]{4,8})[^A-Za-z0-9]{0,30}?' + KW, 'gi');
+  const RE_IS_YOUR   = /(?:your|the)\s+(?:[A-Za-z]+\s+){0,3}?(?:code|otp|pin|passcode|password)\s+(?:is|:)\s*([A-Z0-9]{4,8})\b/gi;
+  const RE_CODE_IS   = /\b([A-Z0-9]{4,8})\s+(?:is\s+your|为\s*您?的?\s*(?:验证码|登录码|动态码|安全码|短信验证码))/gi;
+
+  let m;
+  while ((m = RE_KW_BEFORE.exec(text)) !== null) add(m[1], 10);
+  while ((m = RE_KW_AFTER .exec(text)) !== null) add(m[1], 8);
+  while ((m = RE_IS_YOUR  .exec(text)) !== null) add(m[1], 12);
+  while ((m = RE_CODE_IS  .exec(text)) !== null) add(m[1], 9);
+
+  // 兜底：仅当邮件确实像验证类邮件时，再扫描裸数字串
+  if (scored.size === 0) {
+    const authy = /(?:验证|登录|注册|signin|sign[-\s]?in|signup|sign[-\s]?up|login|log[-\s]?in|verify|confirm|authenticate|2fa|two[-\s]?factor)/i.test(text);
+    if (authy) {
+      const re6 = /\b(\d{6})\b/g;
+      while ((m = re6.exec(text)) !== null) add(m[1], 1);
+      if (scored.size === 0) {
+        const re58 = /\b(\d{5,8})\b/g;
+        while ((m = re58.exec(text)) !== null) add(m[1], 0.5);
+        const re4 = /\b(\d{4})\b/g;
+        while ((m = re4.exec(text)) !== null) add(m[1], 0.3);
+      }
+    }
+  }
+
+  return Array.from(scored.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(e => e[0])
+    .slice(0, 5);
+}
+
+function showToast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (_) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (_) {}
+    document.body.removeChild(ta);
+    return ok;
+  }
+}
+
+function statusOf(item) {
+  if (item.state === 'pending') return 'pending';
+  if (item.state === 'error') return 'error';
+  return item.codes && item.codes.length ? 'success' : 'empty';
+}
+
+function renderGroupsBar() {
+  const bar = $('groupsBar');
+  if (!bar) return;
+  const counts = {
+    [GROUP_ALL]: STATE.items.length,
+    [GROUP_UNGROUPED]: itemsInGroup(GROUP_UNGROUPED).length,
+  };
+  STATE.groups.forEach(g => { counts[g.id] = itemsInGroup(g.id).length; });
+
+  bar.innerHTML = '';
+  const make = (id, label, isCustom) => {
+    const chip = document.createElement('span');
+    chip.className = 'group-chip' + (STATE.activeGroup === id ? ' active' : '');
+    chip.dataset.gid = id;
+    chip.innerHTML = `<span>${escapeHtml(label)}</span><span class="count">${counts[id] || 0}</span>` +
+      (isCustom ? `<span class="x" title="重命名/删除">⋯</span>` : '');
+    chip.addEventListener('click', (e) => {
+      if (e.target.classList.contains('x')) {
+        e.stopPropagation();
+        manageGroup(id);
+        return;
+      }
+      STATE.activeGroup = id;
+      saveState();
+      renderGroupsBar();
+      refilterAll();
+    });
+    bar.appendChild(chip);
+  };
+  make(GROUP_ALL, '全部', false);
+  make(GROUP_UNGROUPED, '未分组', false);
+  STATE.groups.forEach(g => make(g.id, g.name, true));
+
+  const add = document.createElement('span');
+  add.className = 'group-chip group-chip-add';
+  add.textContent = '+ 新建分组';
+  add.addEventListener('click', () => {
+    const name = (prompt('新分组名称') || '').trim();
+    if (!name) return;
+    if (STATE.groups.some(g => g.name === name)) { showToast('分组名重复'); return; }
+    STATE.groups.push({ id: genGroupId(), name });
+    saveGroups();
+    renderGroupsBar();
+    refreshAddGroupSelect();
+  });
+  bar.appendChild(add);
+}
+
+function manageGroup(id) {
+  const g = STATE.groups.find(x => x.id === id);
+  if (!g) return;
+  const ans = prompt(`分组「${g.name}」\n\n输入新名称回车保存\n输入空字符串删除该分组（组内邮箱回到「未分组」）`, g.name);
+  if (ans === null) return;
+  const name = ans.trim();
+  if (!name) {
+    if (!confirm(`确定删除分组「${g.name}」？`)) return;
+    STATE.items.forEach(it => { if (it.groupId === id) it.groupId = null; });
+    STATE.groups = STATE.groups.filter(x => x.id !== id);
+    if (STATE.activeGroup === id) STATE.activeGroup = GROUP_ALL;
+    saveGroups();
+    saveState();
+    renderGroupsBar();
+    refreshAddGroupSelect();
+    refilterAll();
+    STATE.items.forEach(it => { if (it._div) updateGroupTag(it._div, it); });
+    return;
+  }
+  if (STATE.groups.some(x => x.name === name && x.id !== id)) { showToast('分组名重复'); return; }
+  g.name = name;
+  saveGroups();
+  renderGroupsBar();
+  refreshAddGroupSelect();
+  STATE.items.forEach(it => { if (it._div) updateGroupTag(it._div, it); });
+}
+
+function refreshAddGroupSelect() {
+  const sel = $('addGroupSelect');
+  if (!sel) return;
+  const prev = STATE.addToGroup;
+  sel.innerHTML = '';
+  const opts = [{ id: GROUP_UNGROUPED, name: '未分组' }, ...STATE.groups];
+  opts.forEach(o => {
+    const op = document.createElement('option');
+    op.value = o.id;
+    op.textContent = o.name;
+    if (o.id === prev) op.selected = true;
+    sel.appendChild(op);
+  });
+  if (!opts.some(o => o.id === prev)) STATE.addToGroup = GROUP_UNGROUPED;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+let openPopover = null;
+function closePopover() {
+  if (openPopover) { openPopover.remove(); openPopover = null; }
+}
+document.addEventListener('click', (e) => {
+  if (openPopover && !e.target.closest('.group-popover') && !e.target.closest('.group-tag')) closePopover();
+});
+
+function openGroupPopover(anchor, item) {
+  closePopover();
+  const pop = document.createElement('div');
+  pop.className = 'group-popover';
+  const r = anchor.getBoundingClientRect();
+  pop.style.left = (window.scrollX + r.left) + 'px';
+  pop.style.top = (window.scrollY + r.bottom + 4) + 'px';
+
+  const opts = [{ id: null, name: '未分组' }, ...STATE.groups];
+  opts.forEach(o => {
+    const row = document.createElement('div');
+    row.className = 'opt' + ((item.groupId || null) === o.id ? ' selected' : '');
+    row.innerHTML = `<span>${escapeHtml(o.name)}</span><span style="font-size:10px;opacity:.6;">${(item.groupId || null) === o.id ? '✓' : ''}</span>`;
+    row.addEventListener('click', (e) => {
+      e.stopPropagation();
+      item.groupId = o.id;
+      saveState();
+      updateGroupTag(item._div, item);
+      renderGroupsBar();
+      applyFilter(item._div, item);
+      updateStats();
+      closePopover();
+    });
+    pop.appendChild(row);
+  });
+  const sep = document.createElement('div');
+  sep.className = 'sep';
+  pop.appendChild(sep);
+  const create = document.createElement('div');
+  create.className = 'opt';
+  create.style.color = '#667eea';
+  create.textContent = '+ 新建并加入';
+  create.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const name = (prompt('新分组名称') || '').trim();
+    if (!name) return;
+    if (STATE.groups.some(g => g.name === name)) { showToast('分组名重复'); return; }
+    const ng = { id: genGroupId(), name };
+    STATE.groups.push(ng);
+    item.groupId = ng.id;
+    saveGroups();
+    saveState();
+    updateGroupTag(item._div, item);
+    renderGroupsBar();
+    refreshAddGroupSelect();
+    applyFilter(item._div, item);
+    updateStats();
+    closePopover();
+  });
+  pop.appendChild(create);
+
+  document.body.appendChild(pop);
+  openPopover = pop;
+}
+
+function updateGroupTag(div, item) {
+  const tag = div.querySelector('.group-tag');
+  if (!tag) return;
+  const valid = new Set(STATE.groups.map(g => g.id));
+  const inGroup = item.groupId && valid.has(item.groupId);
+  tag.classList.toggle('none', !inGroup);
+  tag.textContent = inGroup ? groupName(item.groupId) : '未分组';
+}
+
+function renderRow(item, idx) {
+  const div = document.createElement('div');
+  div.className = 'row';
+  div.dataset.idx = idx;
+  div.innerHTML = `
+    <div class="row-head">
+      <span class="caret">▶</span>
+      <div class="email"></div>
+      <span class="group-tag none" title="点击修改分组">未分组</span>
+      <div class="status"></div>
+      <div class="codes-inline"></div>
+      <div class="row-actions"></div>
+    </div>
+    <div class="row-detail"></div>
+  `;
+  div.querySelector('.row-head').addEventListener('click', (e) => {
+    if (e.target.closest('.code-chip') || e.target.closest('.icon-btn') || e.target.closest('.email') || e.target.closest('.group-tag')) return;
+    div.classList.toggle('expanded');
+  });
+  div.querySelector('.group-tag').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openGroupPopover(e.currentTarget, item);
+  });
+  return div;
+}
+
+function makeChip(code, big) {
+  const btn = document.createElement('button');
+  btn.className = 'code-chip';
+  btn.textContent = code;
+  btn.title = '点击复制';
+  if (big) btn.style.fontSize = '14px';
+  btn.onclick = async (e) => {
+    e.stopPropagation();
+    const ok = await copyText(code);
+    if (ok) {
+      btn.classList.add('copied');
+      showToast('已复制：' + code);
+      setTimeout(() => btn.classList.remove('copied'), 1400);
+    } else {
+      showToast('复制失败');
+    }
+  };
+  return btn;
+}
+
+function updateRow(div, item) {
+  const head = div.querySelector('.row-head');
+  const status = div.querySelector('.status');
+  const codesEl = div.querySelector('.codes-inline');
+  const actions = div.querySelector('.row-actions');
+  const detail = div.querySelector('.row-detail');
+
+  head.querySelector('.email').textContent = item.email;
+  updateGroupTag(div, item);
+  const emailEl = head.querySelector('.email');
+  emailEl.title = '点击复制邮箱';
+  emailEl.onclick = async (e) => {
+    e.stopPropagation();
+    const ok = await copyText(item.email);
+    if (ok) {
+      emailEl.classList.add('copied');
+      showToast('已复制邮箱：' + item.email);
+      setTimeout(() => emailEl.classList.remove('copied'), 1400);
+    } else {
+      showToast('复制失败');
+    }
+  };
+
+  div.classList.remove('success', 'error', 'loading', 'empty-codes');
+  const s = statusOf(item);
+  if (s === 'pending') {
+    div.classList.add('loading');
+    status.className = 'status pending';
+    status.textContent = '解析中';
+  } else if (s === 'error') {
+    div.classList.add('error');
+    status.className = 'status err';
+    status.textContent = '失败';
+  } else if (s === 'success') {
+    div.classList.add('success');
+    status.className = 'status ok';
+    status.textContent = `${item.codes.length} 个`;
+  } else {
+    div.classList.add('empty-codes');
+    status.className = 'status none';
+    status.textContent = '无验证码';
+  }
+
+  codesEl.innerHTML = '';
+  if (item.codes && item.codes.length) {
+    item.codes.slice(0, 3).forEach(c => codesEl.appendChild(makeChip(c)));
+    if (item.codes.length > 3) {
+      const more = document.createElement('span');
+      more.style.cssText = 'font-size:11px;color:#6c757d;align-self:center;';
+      more.textContent = `+${item.codes.length - 3}`;
+      codesEl.appendChild(more);
+    }
+  }
+
+  actions.innerHTML = '';
+  if (s !== 'pending') {
+    const refresh = document.createElement('button');
+    refresh.className = 'icon-btn';
+    refresh.textContent = s === 'error' ? '↻ 重试' : '↻';
+    refresh.title = '重新解析';
+    refresh.onclick = (e) => {
+      e.stopPropagation();
+      runOne(item, div);
+    };
+    actions.appendChild(refresh);
+
+    const del = document.createElement('button');
+    del.className = 'icon-btn';
+    del.textContent = '✕';
+    del.title = '删除此条记录';
+    del.onclick = (e) => {
+      e.stopPropagation();
+      deleteItem(item);
+    };
+    actions.appendChild(del);
+  }
+
+  detail.innerHTML = '';
+  if (s === 'success' || s === 'empty') {
+    if (item.codes && item.codes.length > 0) {
+      const lbl1 = document.createElement('div');
+      lbl1.className = 'detail-label';
+      lbl1.textContent = `识别到的验证码（${item.codes.length}）`;
+      detail.appendChild(lbl1);
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;';
+      item.codes.forEach(c => wrap.appendChild(makeChip(c, true)));
+      detail.appendChild(wrap);
+    }
+    const lbl2 = document.createElement('div');
+    lbl2.className = 'detail-label';
+    lbl2.textContent = '邮件内容';
+    detail.appendChild(lbl2);
+    const c = document.createElement('div');
+    c.className = 'content';
+    c.textContent = item.content
+      ? (item.content.length > 3000 ? item.content.slice(0, 3000) + '\n...(已截断)' : item.content)
+      : '(无内容)';
+    detail.appendChild(c);
+  } else if (s === 'error') {
+    const lbl = document.createElement('div');
+    lbl.className = 'detail-label';
+    lbl.textContent = '错误信息';
+    detail.appendChild(lbl);
+    const c = document.createElement('div');
+    c.className = 'content error-content';
+    c.textContent = item.error || '未知错误';
+    detail.appendChild(c);
+  }
+
+  applyFilter(div, item);
+}
+
+function applyFilter(div, item) {
+  const q = $('searchInput').value.trim().toLowerCase();
+  const f = $('filterSelect').value;
+  let pass = true;
+
+  const ag = STATE.activeGroup;
+  if (ag && ag !== GROUP_ALL) {
+    const valid = new Set(STATE.groups.map(g => g.id));
+    if (ag === GROUP_UNGROUPED) pass = !item.groupId || !valid.has(item.groupId);
+    else pass = item.groupId === ag;
+  }
+
+  if (pass && q) {
+    const inEmail = item.email.toLowerCase().includes(q);
+    const inCodes = (item.codes || []).some(c => c.toLowerCase().includes(q));
+    const inGroup = groupName(item.groupId).toLowerCase().includes(q);
+    pass = inEmail || inCodes || inGroup;
+  }
+  if (pass && f !== 'all') {
+    pass = statusOf(item) === f;
+  }
+  div.classList.toggle('hidden', !pass);
+}
+
+function refilterAll() {
+  STATE.items.forEach(it => { if (it._div) applyFilter(it._div, it); });
+  updateStats();
+}
+
+function updateStats() {
+  const items = STATE.items;
+  const total = items.length;
+  const ok = items.filter(x => statusOf(x) === 'success').length;
+  const empty = items.filter(x => statusOf(x) === 'empty').length;
+  const err = items.filter(x => statusOf(x) === 'error').length;
+  const pending = items.filter(x => statusOf(x) === 'pending').length;
+  const visible = items.filter(x => x._div && !x._div.classList.contains('hidden')).length;
+  $('stats').innerHTML = `
+    <span>显示 <b>${visible}</b>/${total}</span>
+    <span>成功 <b style="color:#28a745;">${ok}</b></span>
+    <span>无码 <b style="color:#6c757d;">${empty}</b></span>
+    <span>失败 <b style="color:#dc3545;">${err}</b></span>
+    ${pending ? `<span>处理中 <b style="color:#856404;">${pending}</b></span>` : ''}
+  `;
+  const done = total - pending;
+  $('progressBar').style.width = total ? (done / total * 100) + '%' : '0%';
+  $('retryFailedBtn').style.display = err > 0 && !pending ? '' : 'none';
+}
+
+async function runOne(item, div) {
+  item.state = 'pending';
+  item.error = null;
+  updateRow(div, item);
+  updateStats();
+  try {
+    const raw = await fetchContent(item.link);
+    const text = extractText(raw);
+    item.content = text;
+    item.codes = extractCodes(text);
+    item.state = 'done';
+    item.ts = Date.now();
+  } catch (e) {
+    item.state = 'error';
+    item.error = e.message;
+    item.ts = Date.now();
+  }
+  updateRow(div, item);
+  updateStats();
+  saveState();
+}
+
+async function runAll(items) {
+  let i = 0;
+  const workers = Array.from({ length: Math.min(CONCURRENCY, items.length) }, async () => {
+    while (i < items.length) {
+      const idx = i++;
+      const it = items[idx];
+      await runOne(it, it._div);
+    }
+  });
+  await Promise.all(workers);
+}
+
+function renderAll() {
+  if (!STATE.items.length) {
+    $('resultPanel').style.display = 'none';
+    $('emptyPanel').style.display = 'block';
+    return;
+  }
+  $('emptyPanel').style.display = 'none';
+  $('resultPanel').style.display = 'block';
+  const list = $('results');
+  list.innerHTML = '';
+  STATE.items.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  STATE.items.forEach((it, i) => {
+    const div = renderRow(it, i);
+    it._div = div;
+    list.appendChild(div);
+    updateRow(div, it);
+  });
+  updateStats();
+}
+
+function deleteItem(item) {
+  STATE.items = STATE.items.filter(x => x !== item);
+  if (item._div) item._div.remove();
+  saveState();
+  renderGroupsBar();
+  if (!STATE.items.length) renderAll();
+  else updateStats();
+}
+
+$('parseBtn').onclick = async () => {
+  const parsed = parseInput($('input').value);
+  if (!parsed.length) { showToast('未识别到有效数据'); return; }
+  $('input').value = '';
+
+  const targetGroup = STATE.addToGroup === GROUP_UNGROUPED ? null : STATE.addToGroup;
+  const existingMap = new Map(STATE.items.map(x => [x.email + '|' + x.link, x]));
+  const fresh = [];
+  parsed.forEach(p => {
+    const key = p.email + '|' + p.link;
+    const prev = existingMap.get(key);
+    const item = {
+      ...p,
+      state: 'pending',
+      codes: [],
+      content: '',
+      error: null,
+      ts: Date.now(),
+      groupId: prev && prev.groupId !== undefined ? (targetGroup !== null ? targetGroup : prev.groupId) : targetGroup
+    };
+    existingMap.set(key, item);
+    fresh.push(item);
+  });
+  STATE.items = Array.from(existingMap.values());
+  renderAll();
+  renderGroupsBar();
+  saveState();
+
+  $('parseBtn').disabled = true;
+  await runAll(fresh);
+  $('parseBtn').disabled = false;
+  saveState();
+  renderGroupsBar();
+};
+
+$('retryFailedBtn').onclick = async () => {
+  const failed = STATE.items.filter(x => x.state === 'error');
+  if (!failed.length) return;
+  $('parseBtn').disabled = true;
+  await runAll(failed);
+  $('parseBtn').disabled = false;
+};
+
+$('clearInputBtn').onclick = () => {
+  $('input').value = '';
+};
+
+$('clearAllBtn').onclick = () => {
+  if (!STATE.items.length) { showToast('暂无记录'); return; }
+  if (!confirm(`确定删除全部 ${STATE.items.length} 条记录？此操作不可恢复。`)) return;
+  STATE.items = [];
+  $('results').innerHTML = '';
+  saveState();
+  renderAll();
+  renderGroupsBar();
+  showToast('已清空所有记录');
+};
+
+$('copyAllBtn').onclick = async () => {
+  const lines = STATE.items.filter(s => s.codes?.length).map(s => `${s.email}\t${s.codes[0]}`);
+  if (!lines.length) { showToast('暂无可复制的验证码'); return; }
+  const ok = await copyText(lines.join('\n'));
+  showToast(ok ? `已复制 ${lines.length} 条` : '复制失败');
+};
+
+$('expandAllBtn').onclick = () => {
+  document.querySelectorAll('.row:not(.hidden)').forEach(r => r.classList.add('expanded'));
+};
+$('collapseAllBtn').onclick = () => {
+  document.querySelectorAll('.row').forEach(r => r.classList.remove('expanded'));
+};
+
+$('searchInput').addEventListener('input', refilterAll);
+$('filterSelect').addEventListener('change', refilterAll);
+$('addGroupSelect').addEventListener('change', (e) => {
+  STATE.addToGroup = e.target.value || GROUP_UNGROUPED;
+});
+
+$('input').addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') $('parseBtn').click();
+});
+
+(function init() {
+  STATE.groups = loadGroups();
+  try {
+    const ag = localStorage.getItem(ACTIVE_GROUP_KEY);
+    if (ag) STATE.activeGroup = ag;
+  } catch (_) {}
+  refreshAddGroupSelect();
+  const saved = loadState();
+  if (saved.length) {
+    STATE.items = saved.map(x => ({ ...x, error: x.error || null, groupId: x.groupId || null }));
+    renderAll();
+  }
+  renderGroupsBar();
+})();
+</script>
+</body>
+</html>
